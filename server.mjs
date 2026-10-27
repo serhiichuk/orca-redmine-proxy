@@ -284,6 +284,16 @@ async function route(rm, req, url) {
   if (method === 'GET' && (m = /^\/browse\/([^/]+)$/.exec(p))) {
     return { status: 302, headers: { Location: `${rm.url}/issues/${issueId(m[1])}` } }
   }
+  // One fake board orders Orca's status columns by Redmine's admin status order.
+  // Unnamed columns only rank statuses; named ones would add an empty lane per status.
+  if (method === 'GET' && p === '/rest/agile/1.0/board') {
+    needAuth()
+    return { status: 200, body: { startAt: 0, maxResults: 1, total: 1, isLast: true, values: [{ id: 1, name: 'Redmine' }] } }
+  }
+  if (method === 'GET' && p === '/rest/agile/1.0/board/1/configuration') {
+    const columns = (await getStatuses(rm, needAuth())).map((s) => ({ name: '', statuses: [{ id: String(s.id) }] }))
+    return { status: 200, body: { columnConfig: { columns } } }
+  }
   if (method === 'GET' && [`${API}/field`, `${API}/filter/favourite`].includes(p)) {
     needAuth()
     return { status: 200, body: [] }

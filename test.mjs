@@ -373,6 +373,23 @@ test('createmeta: issue types from trackers, minimal field list', async () => {
   })
 })
 
+test('agile board: one board, unnamed columns in Redmine status order', async () => {
+  const statuses = [{ id: 1, name: 'Backlog' }, { id: 10, name: 'Ready for QA' }, { id: 9, name: 'For Deploy' }]
+  const h = (k) => k === 'GET /issue_statuses.json' && [200, { issue_statuses: statuses }]
+  await withProxy(h, async (call) => {
+    // `call` prefixes /rest/api/2; `../..` reaches /rest/agile/1.0.
+    const boards = await call('GET', '/../../agile/1.0/board?projectKeyOrId=CBX_WEB&maxResults=2')
+    assert.deepEqual([boards.status, boards.body.total, boards.body.isLast, boards.body.values.length], [200, 1, true, 1])
+    const cfg = await call('GET', '/../../agile/1.0/board/1/configuration')
+    assert.deepEqual(cfg.body.columnConfig.columns, [
+      { name: '', statuses: [{ id: '1' }] },
+      { name: '', statuses: [{ id: '10' }] },
+      { name: '', statuses: [{ id: '9' }] }
+    ])
+    assert.equal((await call('GET', '/../../agile/1.0/board', undefined, {})).status, 401)
+  })
+})
+
 test('unknown paths, missing auth', async () => {
   await withProxy(() => ok204, async (call, calls) => {
     assert.equal((await call('POST', '/nope', {})).status, 405)
